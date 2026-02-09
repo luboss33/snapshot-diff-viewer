@@ -2,6 +2,9 @@
 
 READ_ONLY forensic viewer for DiffResult produced by Snapshot Diff.
 
+⚠️ Snapshot Diff Viewer is a READ_ONLY forensic tool.  
+Usage rules and boundaries are defined in [USER_CONTRACT.md](./USER_CONTRACT.md).
+
 This repository contains:
 - the authoritative definition of Snapshot Diff Viewer responsibilities
 - the implementation of Snapshot Diff Viewer
@@ -12,6 +15,15 @@ This is NOT:
 - an inspect tool
 - a UI editor
 - a planning or execution system
+
+--------------------------------------------------
+
+## Design Invariants
+
+- READ_ONLY by design: the viewer never mutates data, state, or systems.
+- Facts only: it exposes what changed, never why it changed or whether it is correct.
+- DiffResult is the boundary: all meaning comes exclusively from the provided DiffResult.
+- No decision authority: approval, rejection, or interpretation always belongs to humans.
 
 --------------------------------------------------
 
@@ -43,6 +55,7 @@ the implementation is architecturally incorrect.
 
 The following documents define the FINAL meaning of this repository:
 
+- USER_CONTRACT.md
 - docs/ROLE.md
 - docs/ANTI_PATTERNS.md
 
@@ -67,7 +80,7 @@ Snapshot Diff Viewer:
 ## Enforcement Rule
 
 If there is a conflict between implementation ideas
-and the documents in /docs,
+and the documents in /docs or USER_CONTRACT.md,
 
 THE DOCUMENTS WIN.
 

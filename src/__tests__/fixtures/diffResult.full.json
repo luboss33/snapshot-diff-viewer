@@ -1,0 +1,87 @@
+{
+    "meta": {
+        "engine_version": "1.0.0",
+        "diff_version": "1.0.0",
+        "generated_at": "2026-02-10T12:00:00Z"
+    },
+    "snapshots": {
+        "before": {
+            "snapshot_id": "snapshot-A"
+        },
+        "after": {
+            "snapshot_id": "snapshot-B"
+        }
+    },
+    "changes": [
+        {
+            "change_id": "chg-001",
+            "change_type": "NODE_ADDED",
+            "target": {
+                "node_id": "node-added",
+                "parent_id": "parent-1"
+            },
+            "before": null,
+            "after": {
+                "type": "FRAME",
+                "name": "New Frame",
+                "visible": true
+            }
+        },
+        {
+            "change_id": "chg-002",
+            "change_type": "NODE_REMOVED",
+            "target": {
+                "node_id": "node-removed",
+                "parent_id": "parent-1"
+            },
+            "before": {
+                "type": "TEXT",
+                "name": "Old Label",
+                "visible": true
+            },
+            "after": null
+        },
+        {
+            "change_id": "chg-003",
+            "change_type": "NODE_MOVED",
+            "target": {
+                "node_id": "node-moved",
+                "parent_id": "parent-new"
+            },
+            "before": {
+                "parent_id": "parent-old"
+            },
+            "after": {
+                "parent_id": "parent-new"
+            }
+        },
+        {
+            "change_id": "chg-004",
+            "change_type": "NODE_UPDATED",
+            "target": {
+                "node_id": "node-property"
+            },
+            "before": {
+                "opacity": 0.5
+            },
+            "after": {
+                "opacity": 1
+            }
+        },
+        {
+            "change_id": "chg-005",
+            "change_type": "NODE_UPDATED",
+            "target": {
+                "node_id": "node-geometry"
+            },
+            "before": {
+                "width": 100,
+                "height": 40
+            },
+            "after": {
+                "width": 120,
+                "height": 40
+            }
+        }
+    ]
+}

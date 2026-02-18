@@ -1,8 +1,18 @@
+--------------------------------------------------
+⚠️ DEPRECATED — DIFF MODEL V1
+
+This contract is retained for historical reference only.
+Snapshot Diff Viewer no longer supports Diff Model v1.
+
+Use docs/DIFF_MODEL_V2_VIEWER_CONTRACT.md instead.
+--------------------------------------------------
+
 # AUTHORITATIVE DIFFRESULT CONTRACT — VIEWER-FACING
 
-Status: LOCKED  
-Scope: Snapshot Diff Viewer Input Contract  
-Type: Authoritative Interface Definition  
+Status: DEPRECATED (Diff Model v1)
+Superseded by Diff Model v2 Viewer Contract
+Scope: Snapshot Diff Viewer Input Contract
+Type: Authoritative Interface Definition
 
 This document defines the ONLY DiffResult shape that
 Snapshot Diff Viewer is allowed to consume.

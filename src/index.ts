@@ -1,3 +1,12 @@
-export * from './types';
-export * from './core';
-export * from './viewer/renderText';
+export type {
+    DiffResult,
+    DiffChange,
+    ChangeType
+} from './types';
+
+export {
+    loadDiffResult,
+    ValidationError
+} from './core';
+
+export { renderText } from './viewer/renderText';

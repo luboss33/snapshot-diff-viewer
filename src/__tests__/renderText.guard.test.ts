@@ -24,20 +24,30 @@ describe('renderText guard', () => {
         expect(outputA).toContain(diff.meta.engine_version);
     });
 
-    it('contains meta.diff_version', () => {
-        expect(outputA).toContain(diff.meta.diff_version);
+    it('contains meta.diff_model_version', () => {
+        expect(outputA).toContain(diff.meta.diff_model_version);
     });
 
-    it('contains meta.generated_at', () => {
-        expect(outputA).toContain(diff.meta.generated_at);
+    it('contains meta.snapshotA.id', () => {
+        expect(outputA).toContain(diff.meta.snapshotA.id);
     });
 
-    it('contains snapshots.before.snapshot_id', () => {
-        expect(outputA).toContain(diff.snapshots.before.snapshot_id);
+    it('contains meta.snapshotB.id', () => {
+        expect(outputA).toContain(diff.meta.snapshotB.id);
     });
 
-    it('contains snapshots.after.snapshot_id', () => {
-        expect(outputA).toContain(diff.snapshots.after.snapshot_id);
+    it('contains all summary fields', () => {
+        const summaryKeys: (keyof typeof diff.summary)[] = [
+            'removed',
+            'added',
+            'moved',
+            'reordered',
+            'property',
+            'geometry'
+        ];
+        for (const key of summaryKeys) {
+            expect(outputA).toContain(`summary.${key}: ${diff.summary[key]}`);
+        }
     });
 
     describe('changes', () => {
@@ -47,12 +57,12 @@ describe('renderText guard', () => {
                     expect(outputA).toContain(change.change_id);
                 });
 
-                it('contains change_type', () => {
-                    expect(outputA).toContain(change.change_type);
+                it('contains changeType', () => {
+                    expect(outputA).toContain(change.changeType);
                 });
 
-                it('contains target.node_id', () => {
-                    expect(outputA).toContain(change.target.node_id);
+                it('contains nodeId', () => {
+                    expect(outputA).toContain(change.nodeId);
                 });
             });
         });

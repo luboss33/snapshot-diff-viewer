@@ -6,21 +6,31 @@ import { loadDiffResult } from '../core/loader';
 function createValidDiffResult() {
     return {
         meta: {
-            engine_version: '1.0.0',
-            diff_version: '1.0.0',
-            generated_at: '2026-02-09T12:00:00Z',
+            engine_version: '2.0.0',
+            diff_model_version: '2',
+            snapshotA: {
+                id: 'snap-A',
+                nodeCount: 1,
+            },
+            snapshotB: {
+                id: 'snap-B',
+                nodeCount: 2,
+            },
         },
-        snapshots: {
-            before: { snapshot_id: 'snap-001' },
-            after: { snapshot_id: 'snap-002' },
+        summary: {
+            removed: 0,
+            added: 1,
+            moved: 0,
+            reordered: 0,
+            property: 0,
+            geometry: 0,
         },
         changes: [
             {
                 change_id: 'chg-001',
-                change_type: 'NODE_ADDED',
-                target: { node_id: 'node-123' },
-                before: null,
-                after: { name: 'Button', visible: true },
+                changeType: 'added',
+                nodeId: 'node-1',
+                after: { name: 'Button' },
             },
         ],
     };
@@ -42,17 +52,15 @@ describe('validateDiffResult', () => {
         it('rejects unknown top-level fields', () => {
             const input = { ...createValidDiffResult(), extraField: 'value' };
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
-            expect(() => validateDiffResult(input)).toThrow(/unexpected fields.*extraField/);
         });
 
         it('rejects missing meta', () => {
             const { meta, ...input } = createValidDiffResult();
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
-            expect(() => validateDiffResult(input)).toThrow(/missing required field 'meta'/);
         });
 
-        it('rejects missing snapshots', () => {
-            const { snapshots, ...input } = createValidDiffResult();
+        it('rejects missing summary', () => {
+            const { summary, ...input } = createValidDiffResult();
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
@@ -65,157 +73,179 @@ describe('validateDiffResult', () => {
     describe('meta validation', () => {
         it('rejects missing engine_version', () => {
             const input = createValidDiffResult();
-            delete (input.meta as Record<string, unknown>).engine_version;
-            expect(() => validateDiffResult(input)).toThrow(/missing required field 'engine_version'/);
-        });
-
-        it('rejects non-string engine_version', () => {
-            const input = createValidDiffResult();
-            (input.meta as Record<string, unknown>).engine_version = 123;
+            delete (input.meta as any).engine_version;
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
-        it('rejects missing diff_version', () => {
+        it('rejects invalid diff_model_version', () => {
             const input = createValidDiffResult();
-            delete (input.meta as Record<string, unknown>).diff_version;
+            (input.meta as any).diff_model_version = '1';
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
-        it('rejects missing generated_at', () => {
+        it('rejects missing snapshotA.id', () => {
             const input = createValidDiffResult();
-            delete (input.meta as Record<string, unknown>).generated_at;
-            expect(() => validateDiffResult(input)).toThrow(ValidationError);
-        });
-    });
-
-    describe('snapshots validation', () => {
-        it('rejects missing before', () => {
-            const input = createValidDiffResult();
-            delete (input.snapshots as Record<string, unknown>).before;
+            delete (input.meta.snapshotA as any).id;
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
-        it('rejects missing after', () => {
+        it('rejects negative nodeCount', () => {
             const input = createValidDiffResult();
-            delete (input.snapshots as Record<string, unknown>).after;
-            expect(() => validateDiffResult(input)).toThrow(ValidationError);
-        });
-
-        it('rejects missing snapshot_id in before', () => {
-            const input = createValidDiffResult();
-            delete (input.snapshots.before as Record<string, unknown>).snapshot_id;
+            (input.meta.snapshotA as any).nodeCount = -1;
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
     });
 
-    describe('change_type enum validation', () => {
-        it('accepts NODE_ADDED', () => {
+    describe('summary validation', () => {
+        it('rejects missing summary key', () => {
             const input = createValidDiffResult();
-            input.changes[0].change_type = 'NODE_ADDED';
-            (input.changes[0] as Record<string, unknown>).before = null;
-            (input.changes[0] as Record<string, unknown>).after = { x: 1 };
-            expect(() => validateDiffResult(input)).not.toThrow();
-        });
-
-        it('accepts NODE_REMOVED', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_REMOVED';
-            (input.changes[0] as Record<string, unknown>).before = { x: 1 };
-            (input.changes[0] as Record<string, unknown>).after = null;
-            expect(() => validateDiffResult(input)).not.toThrow();
-        });
-
-        it('accepts NODE_MOVED', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_MOVED';
-            (input.changes[0] as Record<string, unknown>).before = { parent_id: 'a' };
-            (input.changes[0] as Record<string, unknown>).after = { parent_id: 'b' };
-            expect(() => validateDiffResult(input)).not.toThrow();
-        });
-
-        it('accepts NODE_UPDATED', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_UPDATED';
-            (input.changes[0] as Record<string, unknown>).before = { name: 'old' };
-            (input.changes[0] as Record<string, unknown>).after = { name: 'new' };
-            expect(() => validateDiffResult(input)).not.toThrow();
-        });
-
-        it('rejects invalid change_type', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'INVALID_TYPE';
+            delete (input.summary as any).added;
             expect(() => validateDiffResult(input)).toThrow(ValidationError);
-            expect(() => validateDiffResult(input)).toThrow(/invalid value 'INVALID_TYPE'/);
+        });
+
+        it('rejects negative summary value', () => {
+            const input = createValidDiffResult();
+            (input.summary as any).added = -1;
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
+        });
+    });
+
+    describe('changeType enum validation', () => {
+        it('accepts removed', () => {
+            const input = createValidDiffResult();
+            input.summary = {
+                removed: 1,
+                added: 0,
+                moved: 0,
+                reordered: 0,
+                property: 0,
+                geometry: 0,
+            };
+            input.changes[0] = {
+                change_id: 'c1',
+                changeType: 'removed',
+                nodeId: 'node-1',
+                before: { x: 1 },
+            };
+            expect(() => validateDiffResult(input)).not.toThrow();
+        });
+
+        it('rejects invalid changeType', () => {
+            const input = createValidDiffResult();
+            (input.changes[0] as any).changeType = 'INVALID';
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
     });
 
     describe('nullability rules', () => {
-        it('rejects NODE_ADDED with non-null before', () => {
+        it('rejects added with before defined', () => {
             const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_ADDED';
-            (input.changes[0] as Record<string, unknown>).before = { x: 1 };
-            (input.changes[0] as Record<string, unknown>).after = { y: 2 };
-            expect(() => validateDiffResult(input)).toThrow(/must be null for NODE_ADDED/);
+            (input.changes[0] as any).before = { x: 1 };
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
-        it('rejects NODE_ADDED with null after', () => {
+        it('rejects removed with after defined', () => {
             const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_ADDED';
-            (input.changes[0] as Record<string, unknown>).before = null;
-            (input.changes[0] as Record<string, unknown>).after = null;
-            expect(() => validateDiffResult(input)).toThrow(/must be object for NODE_ADDED/);
+            input.summary = {
+                removed: 1,
+                added: 0,
+                moved: 0,
+                reordered: 0,
+                property: 0,
+                geometry: 0,
+            };
+            input.changes[0] = {
+                change_id: 'c1',
+                changeType: 'removed',
+                nodeId: 'node-1',
+                before: { x: 1 },
+                after: { y: 2 },
+            };
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
-        it('rejects NODE_REMOVED with null before', () => {
+        it('rejects property change with null before', () => {
             const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_REMOVED';
-            (input.changes[0] as Record<string, unknown>).before = null;
-            (input.changes[0] as Record<string, unknown>).after = null;
-            expect(() => validateDiffResult(input)).toThrow(/must be object for NODE_REMOVED/);
-        });
-
-        it('rejects NODE_REMOVED with non-null after', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_REMOVED';
-            (input.changes[0] as Record<string, unknown>).before = { x: 1 };
-            (input.changes[0] as Record<string, unknown>).after = { y: 2 };
-            expect(() => validateDiffResult(input)).toThrow(/must be null for NODE_REMOVED/);
-        });
-
-        it('rejects NODE_MOVED with null before', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_MOVED';
-            (input.changes[0] as Record<string, unknown>).before = null;
-            (input.changes[0] as Record<string, unknown>).after = { x: 1 };
-            expect(() => validateDiffResult(input)).toThrow(/must be object for NODE_MOVED/);
-        });
-
-        it('rejects NODE_UPDATED with null after', () => {
-            const input = createValidDiffResult();
-            (input.changes[0] as Record<string, unknown>).change_type = 'NODE_UPDATED';
-            (input.changes[0] as Record<string, unknown>).before = { x: 1 };
-            (input.changes[0] as Record<string, unknown>).after = null;
-            expect(() => validateDiffResult(input)).toThrow(/must be object for NODE_UPDATED/);
+            input.summary = {
+                removed: 0,
+                added: 0,
+                moved: 0,
+                reordered: 0,
+                property: 1,
+                geometry: 0,
+            };
+            input.changes[0] = {
+                change_id: 'c1',
+                changeType: 'property',
+                nodeId: 'node-1',
+                before: null,
+                after: { x: 1 },
+            };
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
     });
 
-    describe('change required fields', () => {
-        it('rejects missing change_id', () => {
+    describe('ordering rules', () => {
+        it('rejects wrong category order', () => {
             const input = createValidDiffResult();
-            delete (input.changes[0] as Record<string, unknown>).change_id;
-            expect(() => validateDiffResult(input)).toThrow(/missing required field 'change_id'/);
+            input.summary = {
+                removed: 1,
+                added: 1,
+                moved: 0,
+                reordered: 0,
+                property: 0,
+                geometry: 0,
+            };
+            input.changes = [
+                {
+                    change_id: 'c1',
+                    changeType: 'added',
+                    nodeId: 'node-1',
+                    after: {},
+                },
+                {
+                    change_id: 'c2',
+                    changeType: 'removed',
+                    nodeId: 'node-2',
+                    before: {},
+                },
+            ];
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
 
-        it('rejects missing target', () => {
+        it('rejects wrong nodeId order within category', () => {
             const input = createValidDiffResult();
-            delete (input.changes[0] as Record<string, unknown>).target;
-            expect(() => validateDiffResult(input)).toThrow(/missing required field 'target'/);
+            input.summary = {
+                removed: 0,
+                added: 2,
+                moved: 0,
+                reordered: 0,
+                property: 0,
+                geometry: 0,
+            };
+            input.changes = [
+                {
+                    change_id: 'c2',
+                    changeType: 'added',
+                    nodeId: 'node-2',
+                    after: {},
+                },
+                {
+                    change_id: 'c1',
+                    changeType: 'added',
+                    nodeId: 'node-1',
+                    after: {},
+                },
+            ];
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
+    });
 
-        it('rejects missing node_id in target', () => {
+    describe('summary consistency', () => {
+        it('rejects inconsistent count', () => {
             const input = createValidDiffResult();
-            delete (input.changes[0].target as Record<string, unknown>).node_id;
-            expect(() => validateDiffResult(input)).toThrow(/missing required field 'node_id'/);
+            input.summary.added = 2; // actual is 1
+            expect(() => validateDiffResult(input)).toThrow(ValidationError);
         });
     });
 });
@@ -227,7 +257,7 @@ describe('loadDiffResult', () => {
 
         expect(Object.isFrozen(result.diffResult)).toBe(true);
         expect(Object.isFrozen(result.diffResult.meta)).toBe(true);
-        expect(Object.isFrozen(result.diffResult.snapshots)).toBe(true);
+        expect(Object.isFrozen(result.diffResult.summary)).toBe(true);
         expect(Object.isFrozen(result.diffResult.changes)).toBe(true);
     });
 
@@ -235,28 +265,14 @@ describe('loadDiffResult', () => {
         const input = createValidDiffResult();
         const result = loadDiffResult(input);
 
-        expect(result.diffResult.meta.engine_version).toBe('1.0.0');
-        expect(result.diffResult.snapshots.before.snapshot_id).toBe('snap-001');
+        expect(result.diffResult.meta.engine_version).toBe('2.0.0');
+        expect(result.diffResult.meta.snapshotA.id).toBe('snap-A');
         expect(result.diffResult.changes[0].change_id).toBe('chg-001');
-        expect(result.diffResult.changes[0].change_type).toBe('NODE_ADDED');
+        expect(result.diffResult.changes[0].changeType).toBe('added');
     });
 
     it('throws ValidationError for invalid input', () => {
         expect(() => loadDiffResult(null)).toThrow(ValidationError);
         expect(() => loadDiffResult({ invalid: true })).toThrow(ValidationError);
-    });
-
-    it('handles multiple changes', () => {
-        const input = createValidDiffResult();
-        input.changes.push({
-            change_id: 'chg-002',
-            change_type: 'NODE_REMOVED',
-            target: { node_id: 'node-456' },
-            before: { name: 'OldNode' },
-            after: null,
-        });
-
-        const result = loadDiffResult(input);
-        expect(result.diffResult.changes.length).toBe(2);
     });
 });

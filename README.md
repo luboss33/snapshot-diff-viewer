@@ -58,6 +58,7 @@ The following documents define the FINAL meaning of this repository:
 - USER_CONTRACT.md
 - docs/ROLE.md
 - docs/ANTI_PATTERNS.md
+-docs/DIFF_MODEL_V2_VIEWER_CONTRACT.md
 
 All code in this repository MUST comply with them.
 

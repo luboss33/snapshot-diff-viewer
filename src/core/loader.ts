@@ -19,19 +19,28 @@ export function loadDiffResult(input: unknown): LoadResult {
 
     return {
         diffResult: Object.freeze({
-            meta: Object.freeze({ ...validated.meta }),
-            snapshots: Object.freeze({
-                before: Object.freeze({ ...validated.snapshots.before }),
-                after: Object.freeze({ ...validated.snapshots.after }),
+            meta: Object.freeze({
+                ...validated.meta,
+                snapshotA: Object.freeze({ ...validated.meta.snapshotA }),
+                snapshotB: Object.freeze({ ...validated.meta.snapshotB }),
             }),
+            summary: Object.freeze({ ...validated.summary }),
             changes: Object.freeze(
                 validated.changes.map(change =>
                     Object.freeze({
-                        change_id: change.change_id,
-                        change_type: change.change_type,
-                        target: Object.freeze({ ...change.target }),
-                        before: change.before === null ? null : Object.freeze({ ...change.before }),
-                        after: change.after === null ? null : Object.freeze({ ...change.after }),
+                        ...change,
+                        before:
+                            change.before !== undefined &&
+                                change.before !== null &&
+                                typeof change.before === 'object'
+                                ? Object.freeze({ ...(change.before as Record<string, unknown>) })
+                                : change.before,
+                        after:
+                            change.after !== undefined &&
+                                change.after !== null &&
+                                typeof change.after === 'object'
+                                ? Object.freeze({ ...(change.after as Record<string, unknown>) })
+                                : change.after,
                     })
                 )
             ),

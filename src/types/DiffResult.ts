@@ -1,48 +1,52 @@
 /**
- * DiffResult Type Definitions
- * Matches docs/DIFF_RESULT_CONTRACT.md exactly.
+ * DiffResult Type Definitions — Diff Model v2
+ * Matches docs/04_Diff_Model_v2.md exactly.
  * READ_ONLY: These types are immutable and must not be extended.
  */
 
-export const CHANGE_TYPES = ['NODE_ADDED', 'NODE_REMOVED', 'NODE_MOVED', 'NODE_UPDATED'] as const;
+export const CHANGE_TYPES = [
+  'removed',
+  'added',
+  'moved',
+  'reordered',
+  'property',
+  'geometry',
+] as const;
+
 export type ChangeType = typeof CHANGE_TYPES[number];
+
+export interface SnapshotMetaRef {
+  readonly id: string;
+  readonly nodeCount: number;
+}
 
 export interface DiffMeta {
   readonly engine_version: string;
-  readonly diff_version: string;
-  readonly generated_at: string;
+  readonly diff_model_version: '2';
+  readonly snapshotA: SnapshotMetaRef;
+  readonly snapshotB: SnapshotMetaRef;
 }
 
-export interface SnapshotRef {
-  readonly snapshot_id: string;
-}
+export type Summary = {
+  readonly [K in ChangeType]: number;
+};
 
-export interface DiffSnapshots {
-  readonly before: SnapshotRef;
-  readonly after: SnapshotRef;
-}
-
-export interface ChangeTarget {
-  readonly node_id: string;
-  readonly parent_id?: string;
-}
-
-export interface StateFragment {
-  readonly [key: string]: unknown;
-}
-
-export interface Change {
+export interface DiffChange {
   readonly change_id: string;
-  readonly change_type: ChangeType;
-  readonly target: ChangeTarget;
-  readonly before: StateFragment | null;
-  readonly after: StateFragment | null;
+  readonly changeType: ChangeType;
+  readonly nodeId: string;
+  readonly before?: unknown;
+  readonly after?: unknown;
 }
 
 export interface DiffResult {
   readonly meta: DiffMeta;
-  readonly snapshots: DiffSnapshots;
-  readonly changes: readonly Change[];
+  readonly summary: Summary;
+  readonly changes: readonly DiffChange[];
 }
 
-export const ALLOWED_TOP_LEVEL_KEYS = ['meta', 'snapshots', 'changes'] as const;
+export const ALLOWED_TOP_LEVEL_KEYS = [
+  'meta',
+  'summary',
+  'changes',
+] as const;

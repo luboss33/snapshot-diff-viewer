@@ -1,12 +1,29 @@
 /**
  * DiffResult Validator
- * Strict validation against docs/DIFF_RESULT_CONTRACT.md.
+ * Strict validation against Diff Model v2.
  * Fails fast on first contract violation.
  * READ_ONLY: Does not mutate input.
  */
 
 import { ValidationError } from './ValidationError';
-import { CHANGE_TYPES, ALLOWED_TOP_LEVEL_KEYS, ChangeType } from '../types';
+import { CHANGE_TYPES, ChangeType } from '../types';
+
+// --- Constants ---
+
+const EXPECTED_DIFF_MODEL_VERSION = '2';
+
+const TOP_LEVEL_KEYS = ['meta', 'summary', 'changes'];
+
+const META_KEYS = ['engine_version', 'diff_model_version', 'snapshotA', 'snapshotB'];
+const SNAPSHOT_REF_KEYS = ['id', 'nodeCount'];
+
+const SUMMARY_KEYS: readonly ChangeType[] = CHANGE_TYPES;
+
+const CHANGE_KEYS = ['change_id', 'changeType', 'nodeId', 'before', 'after'];
+
+const CHANGE_TYPE_ORDER: readonly ChangeType[] = CHANGE_TYPES;
+
+// --- Helpers ---
 
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -16,14 +33,12 @@ function isString(value: unknown): value is string {
     return typeof value === 'string';
 }
 
-function isArray(value: unknown): value is unknown[] {
-    return Array.isArray(value);
+function isNumber(value: unknown): value is number {
+    return typeof value === 'number' && !isNaN(value);
 }
 
-function assertString(value: unknown, path: string, rule: string): asserts value is string {
-    if (!isString(value)) {
-        throw new ValidationError(path, rule, `expected string, got ${typeof value}`);
-    }
+function isInteger(value: unknown): value is number {
+    return isNumber(value) && Number.isInteger(value);
 }
 
 function assertObject(value: unknown, path: string, rule: string): asserts value is Record<string, unknown> {
@@ -32,134 +47,207 @@ function assertObject(value: unknown, path: string, rule: string): asserts value
     }
 }
 
+function assertString(value: unknown, path: string, rule: string): asserts value is string {
+    if (!isString(value)) {
+        throw new ValidationError(path, rule, `expected string, got ${typeof value}`);
+    }
+}
+
+function assertInteger(value: unknown, path: string, rule: string): asserts value is number {
+    if (!isInteger(value)) {
+        throw new ValidationError(path, rule, `expected integer, got ${typeof value}`);
+    }
+}
+
 function assertArray(value: unknown, path: string, rule: string): asserts value is unknown[] {
-    if (!isArray(value)) {
+    if (!Array.isArray(value)) {
         throw new ValidationError(path, rule, `expected array, got ${typeof value}`);
     }
 }
 
-function assertRequiredField(obj: Record<string, unknown>, field: string, path: string): unknown {
+function validateNoExtraKeys(obj: Record<string, unknown>, allowedKeys: readonly string[], path: string): void {
+    const objKeys = Object.keys(obj);
+    for (const key of objKeys) {
+        if (!allowedKeys.includes(key)) {
+            throw new ValidationError(path, 'NO_EXTRA_KEYS', `unexpected field '${key}'`);
+        }
+    }
+}
+
+function getRequiredField(obj: Record<string, unknown>, field: string, path: string): unknown {
     if (!(field in obj)) {
         throw new ValidationError(path, 'REQUIRED_FIELD', `missing required field '${field}'`);
     }
     return obj[field];
 }
 
-function validateNoExtraKeys(obj: Record<string, unknown>, allowedKeys: readonly string[], path: string): void {
-    const extraKeys = Object.keys(obj).filter(k => !allowedKeys.includes(k));
-    if (extraKeys.length > 0) {
-        throw new ValidationError(path, 'NO_EXTRA_KEYS', `unexpected fields: ${extraKeys.join(', ')}`);
+// --- Specific Validators ---
+
+function validateSnapshotRef(ref: unknown, path: string): void {
+    assertObject(ref, path, 'SNAPSHOT_REF_OBJECT');
+    validateNoExtraKeys(ref, SNAPSHOT_REF_KEYS, path);
+
+    const id = getRequiredField(ref, 'id', path);
+    assertString(id, `${path}.id`, 'SNAPSHOT_ID_STRING');
+
+    const nodeCount = getRequiredField(ref, 'nodeCount', path);
+    assertInteger(nodeCount, `${path}.nodeCount`, 'SNAPSHOT_NODECOUNT_INTEGER');
+    if ((nodeCount as number) < 0) {
+        throw new ValidationError(`${path}.nodeCount`, 'SNAPSHOT_NODECOUNT_POSITIVE', 'must be >= 0');
     }
 }
 
 function validateMeta(meta: unknown, path: string): void {
     assertObject(meta, path, 'META_OBJECT');
-    assertString(assertRequiredField(meta, 'engine_version', path), `${path}.engine_version`, 'META_ENGINE_VERSION');
-    assertString(assertRequiredField(meta, 'diff_version', path), `${path}.diff_version`, 'META_DIFF_VERSION');
-    assertString(assertRequiredField(meta, 'generated_at', path), `${path}.generated_at`, 'META_GENERATED_AT');
-}
+    validateNoExtraKeys(meta, META_KEYS, path);
 
-function validateSnapshotRef(ref: unknown, path: string): void {
-    assertObject(ref, path, 'SNAPSHOT_REF_OBJECT');
-    assertString(assertRequiredField(ref, 'snapshot_id', path), `${path}.snapshot_id`, 'SNAPSHOT_ID');
-}
+    const engineVersion = getRequiredField(meta, 'engine_version', path);
+    assertString(engineVersion, `${path}.engine_version`, 'META_ENGINE_VERSION_STRING');
 
-function validateSnapshots(snapshots: unknown, path: string): void {
-    assertObject(snapshots, path, 'SNAPSHOTS_OBJECT');
-    const before = assertRequiredField(snapshots, 'before', path);
-    const after = assertRequiredField(snapshots, 'after', path);
-    validateSnapshotRef(before, `${path}.before`);
-    validateSnapshotRef(after, `${path}.after`);
-}
-
-function validateTarget(target: unknown, path: string): void {
-    assertObject(target, path, 'TARGET_OBJECT');
-    assertString(assertRequiredField(target, 'node_id', path), `${path}.node_id`, 'TARGET_NODE_ID');
-    if ('parent_id' in target && target.parent_id !== undefined) {
-        assertString(target.parent_id, `${path}.parent_id`, 'TARGET_PARENT_ID');
+    const diffVersion = getRequiredField(meta, 'diff_model_version', path);
+    if (diffVersion !== EXPECTED_DIFF_MODEL_VERSION) {
+        throw new ValidationError(`${path}.diff_model_version`, 'META_DIFF_MODEL_VERSION', `expected "${EXPECTED_DIFF_MODEL_VERSION}", got "${diffVersion}"`);
     }
+
+    validateSnapshotRef(getRequiredField(meta, 'snapshotA', path), `${path}.snapshotA`);
+    validateSnapshotRef(getRequiredField(meta, 'snapshotB', path), `${path}.snapshotB`);
 }
 
-function validateStateFragment(fragment: unknown, path: string, allowNull: boolean): void {
-    if (fragment === null) {
-        if (!allowNull) {
-            throw new ValidationError(path, 'STATE_FRAGMENT_NOT_NULL', 'expected object, got null');
+function validateSummary(summary: unknown, path: string): Record<ChangeType, number> {
+    assertObject(summary, path, 'SUMMARY_OBJECT');
+    validateNoExtraKeys(summary, SUMMARY_KEYS, path);
+
+    const counts = {} as Record<ChangeType, number>;
+
+    for (const key of SUMMARY_KEYS) {
+        const value = getRequiredField(summary, key, path);
+        assertInteger(value, `${path}.${key}`, 'SUMMARY_VALUE_INTEGER');
+        if ((value as number) < 0) {
+            throw new ValidationError(`${path}.${key}`, 'SUMMARY_VALUE_POSITIVE', 'must be >= 0');
         }
-        return;
+        counts[key] = value as number;
     }
-    assertObject(fragment, path, 'STATE_FRAGMENT_OBJECT');
+    return counts;
 }
 
-function validateNullabilityRules(changeType: ChangeType, before: unknown, after: unknown, path: string): void {
-    switch (changeType) {
-        case 'NODE_ADDED':
-            if (before !== null) {
-                throw new ValidationError(`${path}.before`, 'NULLABILITY_NODE_ADDED', 'must be null for NODE_ADDED');
-            }
-            if (after === null) {
-                throw new ValidationError(`${path}.after`, 'NULLABILITY_NODE_ADDED', 'must be object for NODE_ADDED');
-            }
-            break;
-        case 'NODE_REMOVED':
-            if (before === null) {
-                throw new ValidationError(`${path}.before`, 'NULLABILITY_NODE_REMOVED', 'must be object for NODE_REMOVED');
-            }
-            if (after !== null) {
-                throw new ValidationError(`${path}.after`, 'NULLABILITY_NODE_REMOVED', 'must be null for NODE_REMOVED');
-            }
-            break;
-        case 'NODE_MOVED':
-        case 'NODE_UPDATED':
-            if (before === null) {
-                throw new ValidationError(`${path}.before`, 'NULLABILITY_NODE_MOVED_UPDATED', `must be object for ${changeType}`);
-            }
-            if (after === null) {
-                throw new ValidationError(`${path}.after`, 'NULLABILITY_NODE_MOVED_UPDATED', `must be object for ${changeType}`);
-            }
-            break;
-    }
-}
-
-function validateChange(change: unknown, path: string): void {
+function validateChange(change: unknown, path: string): ChangeType {
     assertObject(change, path, 'CHANGE_OBJECT');
+    validateNoExtraKeys(change, CHANGE_KEYS, path);
 
-    const changeId = assertRequiredField(change, 'change_id', path);
-    assertString(changeId, `${path}.change_id`, 'CHANGE_ID');
+    // change_id
+    const changeId = getRequiredField(change, 'change_id', path);
+    assertString(changeId, `${path}.change_id`, 'CHANGE_ID_STRING');
 
-    const changeType = assertRequiredField(change, 'change_type', path);
-    assertString(changeType, `${path}.change_type`, 'CHANGE_TYPE_STRING');
+    // changeType
+    const changeType = getRequiredField(change, 'changeType', path);
+    assertString(changeType, `${path}.changeType`, 'CHANGE_TYPE_STRING');
+
+    // We check if it is a valid ChangeType
     if (!CHANGE_TYPES.includes(changeType as ChangeType)) {
-        throw new ValidationError(`${path}.change_type`, 'CHANGE_TYPE_ENUM', `invalid value '${changeType}', allowed: ${CHANGE_TYPES.join(', ')}`);
+        throw new ValidationError(`${path}.changeType`, 'CHANGE_TYPE_ENUM', `invalid changeType '${changeType}'`);
+    }
+    // Now we can safely cast
+    const type = changeType as ChangeType;
+
+    // nodeId
+    const nodeId = getRequiredField(change, 'nodeId', path);
+    assertString(nodeId, `${path}.nodeId`, 'CHANGE_NODEID_STRING');
+
+    const beforeVal = change['before'];
+    const afterVal = change['after'];
+
+    // Nullability Rules
+    if (type === 'added') {
+        if (beforeVal !== undefined && beforeVal !== null) {
+            throw new ValidationError(`${path}.before`, 'NULLABILITY_ADDED', 'must be null or undefined for added');
+        }
+        if (afterVal === undefined || afterVal === null) {
+            throw new ValidationError(`${path}.after`, 'NULLABILITY_ADDED', 'must be defined for added');
+        }
+    } else if (type === 'removed') {
+        if (beforeVal === undefined || beforeVal === null) {
+            throw new ValidationError(`${path}.before`, 'NULLABILITY_REMOVED', 'must be defined for removed');
+        }
+        if (afterVal !== undefined && afterVal !== null) {
+            throw new ValidationError(`${path}.after`, 'NULLABILITY_REMOVED', 'must be null or undefined for removed');
+        }
+    } else {
+        // moved, reordered, property, geometry
+        if (beforeVal === undefined || beforeVal === null) {
+            throw new ValidationError(`${path}.before`, `NULLABILITY_${type.toUpperCase()}`, `must be defined for ${type}`);
+        }
+        if (afterVal === undefined || afterVal === null) {
+            throw new ValidationError(`${path}.after`, `NULLABILITY_${type.toUpperCase()}`, `must be defined for ${type}`);
+        }
     }
 
-    const target = assertRequiredField(change, 'target', path);
-    validateTarget(target, `${path}.target`);
-
-    const before = assertRequiredField(change, 'before', path);
-    const after = assertRequiredField(change, 'after', path);
-
-    validateNullabilityRules(changeType as ChangeType, before, after, path);
-    validateStateFragment(before, `${path}.before`, changeType === 'NODE_ADDED');
-    validateStateFragment(after, `${path}.after`, changeType === 'NODE_REMOVED');
+    return type;
 }
 
-function validateChanges(changes: unknown, path: string): void {
-    assertArray(changes, path, 'CHANGES_ARRAY');
+function validateOrderingAndConsistency(changes: unknown[], summaryCounts: Record<ChangeType, number>, path: string): void {
+    const actualCounts: Record<ChangeType, number> = {
+        removed: 0,
+        added: 0,
+        moved: 0,
+        reordered: 0,
+        property: 0,
+        geometry: 0
+    };
+
+    let lastCategoryIndex = -1;
+    let lastNodeId = "";
+
     for (let i = 0; i < changes.length; i++) {
-        validateChange(changes[i], `${path}[${i}]`);
+        const change = changes[i] as Record<string, unknown>;
+        const changePath = `${path}[${i}]`;
+        const type = validateChange(change, changePath);
+
+        // Count
+        if (actualCounts[type] !== undefined) {
+            actualCounts[type]++;
+        }
+
+        // Order
+        const currentCategoryIndex = CHANGE_TYPE_ORDER.indexOf(type);
+        const currentNodeId = change['nodeId'] as string;
+
+        if (currentCategoryIndex < lastCategoryIndex) {
+            const prevType = CHANGE_TYPE_ORDER[lastCategoryIndex];
+            throw new ValidationError(changePath, 'ORDER_CATEGORY', `invalid category order: ${type} after ${prevType}`);
+        }
+
+        if (currentCategoryIndex > lastCategoryIndex) {
+            lastCategoryIndex = currentCategoryIndex;
+            lastNodeId = currentNodeId;
+        } else {
+            // Same category
+            if (currentNodeId < lastNodeId) {
+                throw new ValidationError(changePath, 'ORDER_NODEID', `invalid nodeId order within ${type}: ${currentNodeId} after ${lastNodeId}`);
+            }
+            lastNodeId = currentNodeId;
+        }
+    }
+
+    // Consistency Check
+    for (const key of SUMMARY_KEYS) {
+        if (actualCounts[key] !== summaryCounts[key]) {
+            throw new ValidationError('DiffResult.summary', 'SUMMARY_CONSISTENCY', `summary.${key} (${summaryCounts[key]}) does not match actual count (${actualCounts[key]})`);
+        }
     }
 }
 
 export function validateDiffResult(input: unknown): void {
     assertObject(input, 'DiffResult', 'DIFFRESULT_OBJECT');
+    validateNoExtraKeys(input, TOP_LEVEL_KEYS, 'DiffResult');
 
-    validateNoExtraKeys(input, ALLOWED_TOP_LEVEL_KEYS, 'DiffResult');
-
-    const meta = assertRequiredField(input, 'meta', 'DiffResult');
-    const snapshots = assertRequiredField(input, 'snapshots', 'DiffResult');
-    const changes = assertRequiredField(input, 'changes', 'DiffResult');
-
+    const meta = getRequiredField(input, 'meta', 'DiffResult');
     validateMeta(meta, 'DiffResult.meta');
-    validateSnapshots(snapshots, 'DiffResult.snapshots');
-    validateChanges(changes, 'DiffResult.changes');
+
+    const summary = getRequiredField(input, 'summary', 'DiffResult');
+    const summaryCounts = validateSummary(summary, 'DiffResult.summary');
+
+    const changes = getRequiredField(input, 'changes', 'DiffResult');
+    assertArray(changes, 'DiffResult.changes', 'CHANGES_ARRAY');
+
+    validateOrderingAndConsistency(changes as unknown[], summaryCounts, 'DiffResult.changes');
 }

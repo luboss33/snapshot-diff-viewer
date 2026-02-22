@@ -6,6 +6,7 @@ export type {
 
 export {
     loadDiffResult,
+    validateDiffResult,
     ValidationError
 } from './core';
 

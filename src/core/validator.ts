@@ -6,6 +6,7 @@
  */
 
 import { ValidationError } from './ValidationError';
+import type { DiffResult } from '../types';
 import { CHANGE_TYPES, ChangeType } from '../types';
 
 // --- Constants ---
@@ -236,7 +237,7 @@ function validateOrderingAndConsistency(changes: unknown[], summaryCounts: Recor
     }
 }
 
-export function validateDiffResult(input: unknown): void {
+export function validateDiffResult(input: unknown): asserts input is DiffResult {
     assertObject(input, 'DiffResult', 'DIFFRESULT_OBJECT');
     validateNoExtraKeys(input, TOP_LEVEL_KEYS, 'DiffResult');
 
